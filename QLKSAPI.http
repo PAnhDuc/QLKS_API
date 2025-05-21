@@ -1,0 +1,6 @@
+@QLKSAPI_HostAddress = http://localhost:6666
+
+GET {{QLKSAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
