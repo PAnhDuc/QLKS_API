@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace QLKS_API.Models
 {
     public class User
     {
-        public int UserId { get; set; }
+        [Key]
+        public int UserId { get; set; } // Đánh dấu UserId là khóa chính
         public int RoleId { get; set; }
         public string Username { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;

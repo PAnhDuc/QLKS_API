@@ -4851,11 +4851,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\project\\QLKS_API\\QLKS_API.csproj",
+      "projectUniqueName": "D:\\QLKS_API\\QLKS_API.csproj",
       "projectName": "QLKS_API",
-      "projectPath": "D:\\project\\QLKS_API\\QLKS_API.csproj",
+      "projectPath": "D:\\QLKS_API\\QLKS_API.csproj",
       "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-      "outputPath": "D:\\project\\QLKS_API\\obj\\",
+      "outputPath": "D:\\QLKS_API\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"

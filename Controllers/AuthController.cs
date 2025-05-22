@@ -1,15 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using QLKS_API.Data;
-using QLKS_API.DTOs;
-using QLKS_API.Models;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
-using BCrypt.Net;
-using MailKit.Net.Smtp;
-using MimeKit;
+using QLKS_API.Data;
+using QLKS_API.Models;
+using QLKS_API.Models.Dtos;
 
 namespace QLKS_API.Controllers
 {
@@ -19,11 +16,13 @@ namespace QLKS_API.Controllers
     {
         private readonly HotelDbContext _context;
         private readonly IConfiguration _config;
+        private readonly ILogger<AuthController> _logger; // Khai báo logger
 
-        public AuthController(HotelDbContext context, IConfiguration config)
+        public AuthController(HotelDbContext context, IConfiguration config, ILogger<AuthController> logger)
         {
             _context = context;
             _config = config;
+            _logger = logger; // Gán logger từ dependency injection
         }
 
         [HttpPost("login")]
@@ -31,38 +30,13 @@ namespace QLKS_API.Controllers
         {
             var user = await _context.Users
                 .Include(u => u.Role)
-                .SingleOrDefaultAsync(u => u.Username == dto.Username);
+                .SingleOrDefaultAsync(u => u.Username == dto.Username && u.PasswordHash == dto.PasswordHash);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                return Unauthorized("Invalid username or password");
+            if (user == null)
+                return Unauthorized();
 
             var token = GenerateJwtToken(user);
             return Ok(new { Token = token });
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
-        {
-            if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
-            {
-                return BadRequest(new { Message = "Username already exists" });
-            }
-
-            var user = new User
-            {
-                RoleId = dto.RoleId,
-                Username = dto.Username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                FullName = dto.FullName,
-                Email = dto.Email,
-                Phone = dto.Phone,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "User registered successfully", UserId = user.UserId });
         }
 
         [HttpPost("forgot-password")]
@@ -72,154 +46,84 @@ namespace QLKS_API.Controllers
                 .SingleOrDefaultAsync(u => u.Email == dto.Email);
 
             if (user == null)
-                return NotFound(new { Message = "Email not found" });
+                return NotFound(new { Message = "User not found" });
 
-            // Tạo mã đặt lại mật khẩu bằng JWT
-            var resetToken = GenerateResetToken(dto.Email);
-            
-            // Gửi email với liên kết đặt lại
-            var resetLink = $"http://localhost:5000/api/Auth/reset-password?token={resetToken}&email={dto.Email}";
-            try
-            {
-                await SendResetEmail(dto.Email, resetLink);
-            }
-            catch (Exception ex)
-            {
-                // Log lỗi (trong thực tế, bạn nên dùng ILogger)
-                Console.WriteLine($"Failed to send reset email: {ex.Message}");
-                return StatusCode(500, new { Message = "Failed to send reset email. Please try again later." });
-            }
-
-            return Ok(new { Message = "Password reset link has been sent to your email" });
+            var resetToken = Guid.NewGuid().ToString();
+            // TODO: Lưu token và gửi email
+            return Ok(new { Message = "Password reset link sent to email" });
         }
 
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
-            // Xác thực token
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var jwtKey = _config["Jwt:Key"];
-            if (string.IsNullOrEmpty(jwtKey))
-            {
-                return StatusCode(500, new { Message = "Server configuration error: JWT Key is missing." });
-            }
-
-            try
-            {
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-                tokenHandler.ValidateToken(dto.Token, new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = key,
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true
-                }, out SecurityToken validatedToken);
-
-                var jwtToken = (JwtSecurityToken)validatedToken;
-                var emailClaim = jwtToken.Claims.FirstOrDefault(x => x.Type == "email")?.Value;
-
-                if (emailClaim != dto.Email)
-                    return BadRequest(new { Message = "Invalid token" });
-            }
-            catch (SecurityTokenExpiredException)
-            {
-                return BadRequest(new { Message = "Token has expired" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Message = $"Invalid token: {ex.Message}" });
-            }
-
             var user = await _context.Users
                 .SingleOrDefaultAsync(u => u.Email == dto.Email);
 
             if (user == null)
                 return NotFound(new { Message = "User not found" });
 
-            // Đặt lại mật khẩu
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.PasswordHash = dto.NewPassword; // Thay bằng mã hóa mật khẩu
             await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Password has been reset successfully" });
+            return Ok(new { Message = "Password reset successfully" });
         }
 
-        private string GenerateResetToken(string email)
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            var jwtKey = _config["Jwt:Key"];
-            if (string.IsNullOrEmpty(jwtKey))
+            try
             {
-                throw new InvalidOperationException("JWT Key is not configured.");
+                if (string.IsNullOrWhiteSpace(dto.Username))
+                    return BadRequest(new { Message = "Username cannot be empty" });
+
+                if (string.IsNullOrWhiteSpace(dto.Email))
+                    return BadRequest(new { Message = "Email cannot be empty" });
+
+                if (string.IsNullOrWhiteSpace(dto.Password))
+                    return BadRequest(new { Message = "Password cannot be empty" });
+
+                if (string.IsNullOrWhiteSpace(dto.FullName))
+                    return BadRequest(new { Message = "Full name cannot be empty" });
+
+                if (dto.RoleId <= 0)
+                    return BadRequest(new { Message = "RoleId must be greater than 0" });
+
+                if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
+                    return BadRequest(new { Message = "Username already exists" });
+
+                if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
+                    return BadRequest(new { Message = "Email already exists" });
+
+                var role = await _context.Roles.FindAsync(dto.RoleId);
+                if (role == null)
+                    return BadRequest(new { Message = $"Role with ID {dto.RoleId} does not exist" });
+
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+
+                var user = new User
+                {
+                    Username = dto.Username,
+                    PasswordHash = passwordHash,
+                    Email = dto.Email,
+                    FullName = dto.FullName,
+                    Phone = dto.Phone,
+                    RoleId = dto.RoleId,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Message = "Registration successful", UserId = user.UserId });
             }
-
-            var claims = new[]
+            catch (Exception ex)
             {
-                new Claim("email", email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                claims: claims,
-                expires: DateTime.Now.AddHours(1), // Hết hạn sau 1 giờ
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        private async Task SendResetEmail(string email, string resetLink)
-        {
-            var emailSettings = _config.GetSection("EmailSettings");
-            
-            // Kiểm tra cấu hình email
-            var smtpServer = emailSettings["SmtpServer"];
-            var smtpPortStr = emailSettings["SmtpPort"];
-            var senderEmail = emailSettings["SenderEmail"];
-            var senderName = emailSettings["SenderName"];
-            var username = emailSettings["Username"];
-            var password = emailSettings["Password"];
-
-            if (string.IsNullOrEmpty(smtpServer) || string.IsNullOrEmpty(smtpPortStr) ||
-                string.IsNullOrEmpty(senderEmail) || string.IsNullOrEmpty(senderName) ||
-                string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-            {
-                throw new InvalidOperationException("Email settings are not properly configured in appsettings.json.");
-            }
-
-            if (!int.TryParse(smtpPortStr, out int smtpPort))
-            {
-                throw new InvalidOperationException("Invalid SMTP port in email settings.");
-            }
-
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(senderName, senderEmail));
-            message.To.Add(new MailboxAddress("", email));
-            message.Subject = "Password Reset Request";
-
-            message.Body = new TextPart("plain")
-            {
-                Text = $"Please click the following link to reset your password: {resetLink}\nThis link will expire in 1 hour."
-            };
-
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(smtpServer, smtpPort, MailKit.Security.SecureSocketOptions.StartTls);
-                await client.AuthenticateAsync(username, password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
+                _logger.LogError(ex, "Error occurred while registering user"); // Sử dụng logger
+                return StatusCode(500, new { Message = "An error occurred while registering the user", Details = ex.Message });
             }
         }
 
         private string GenerateJwtToken(User user)
         {
-            var jwtKey = _config["Jwt:Key"];
-            if (string.IsNullOrEmpty(jwtKey))
-            {
-                throw new InvalidOperationException("JWT Key is not configured.");
-            }
-
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
@@ -227,7 +131,7 @@ namespace QLKS_API.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
@@ -239,5 +143,33 @@ namespace QLKS_API.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+    }
+
+    public class LoginDto
+    {
+        public string Username { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } = string.Empty;
+    }
+
+    public class ForgotPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class RegisterDto
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public int RoleId { get; set; }
     }
 }
