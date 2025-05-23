@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\QLKS_API\\QLKS_API.csproj": {}
+    "D:\\project\\QLKS_API\\QLKS_API.csproj": {}
   },
   "projects": {
-    "D:\\QLKS_API\\QLKS_API.csproj": {
+    "D:\\project\\QLKS_API\\QLKS_API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\QLKS_API\\QLKS_API.csproj",
+        "projectUniqueName": "D:\\project\\QLKS_API\\QLKS_API.csproj",
         "projectName": "QLKS_API",
-        "projectPath": "D:\\QLKS_API\\QLKS_API.csproj",
+        "projectPath": "D:\\project\\QLKS_API\\QLKS_API.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\QLKS_API\\obj\\",
+        "outputPath": "D:\\project\\QLKS_API\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -109,7 +109,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.408/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.409/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

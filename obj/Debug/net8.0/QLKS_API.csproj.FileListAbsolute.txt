@@ -369,3 +369,6 @@ D:\QLKS_API\obj\Debug\net8.0\scopedcss\bundle\QLKS_API.styles.css
 D:\QLKS_API\obj\Debug\net8.0\QLKS_API.csproj.Up2Date
 D:\QLKS_API\obj\Debug\net8.0\QLKS_API.genruntimeconfig.cache
 D:\QLKS_API\obj\Debug\net8.0\ref\QLKS_API.dll
+D:\project\QLKS_API\bin\Debug\net8.0\BouncyCastle.Cryptography.dll
+D:\project\QLKS_API\bin\Debug\net8.0\MailKit.dll
+D:\project\QLKS_API\bin\Debug\net8.0\MimeKit.dll
