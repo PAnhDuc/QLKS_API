@@ -7,9 +7,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using System.Linq;
 using BCrypt.Net;
 using MailKit.Net.Smtp;
 using MimeKit;
+using QLKS_API.Models.Dtos;
 
 namespace QLKS_API.Controllers
 {
@@ -70,34 +72,25 @@ namespace QLKS_API.Controllers
 
             // Kiểm tra username đã tồn tại
             if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
-            {
                 return BadRequest(new { Message = "Tên người dùng đã tồn tại" });
-            }
 
-            // Kiểm tra email đã tồn tại (nếu email không null và bảng Users có ràng buộc unique trên Email)
+            // Kiểm tra email đã tồn tại
             if (!string.IsNullOrWhiteSpace(dto.Email) && await _context.Users.AnyAsync(u => u.Email == dto.Email))
-            {
                 return BadRequest(new { Message = "Email đã tồn tại" });
-            }
 
-            // Kiểm tra phone đã tồn tại (nếu phone không null và bảng Users có ràng buộc unique trên Phone)
+            // Kiểm tra phone đã tồn tại
             if (!string.IsNullOrWhiteSpace(dto.Phone) && await _context.Users.AnyAsync(u => u.Phone == dto.Phone))
-            {
                 return BadRequest(new { Message = "Số điện thoại đã tồn tại" });
-            }
 
             // Kiểm tra vai trò mặc định (RoleId = 4) có tồn tại không
             if (!await _context.Roles.AnyAsync(r => r.RoleId == 4))
-            {
                 return StatusCode(500, new { Message = "Không thể đăng ký người dùng. Vai trò mặc định (RoleId = 4) không tồn tại trong cơ sở dữ liệu" });
-            }
 
             try
             {
-                // Tạo mới người dùng với RoleId mặc định là 4
                 var user = new User
                 {
-                    RoleId = 4, // Gán mặc định RoleId = 4
+                    RoleId = 4,
                     Username = dto.Username,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                     FullName = dto.FullName,
@@ -113,100 +106,124 @@ namespace QLKS_API.Controllers
             }
             catch (DbUpdateException ex)
             {
-                // Log lỗi chi tiết để debug
-                var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                var errorMessage = ex.InnerException?.Message ?? ex.Message;
                 Console.WriteLine($"Lỗi DbUpdateException khi đăng ký người dùng: {errorMessage}");
 
-                if (ex.InnerException?.Message.Contains("UNIQUE KEY constraint") ?? false)
+                // Kiểm tra lỗi unique constraint để trả về thông báo cụ thể
+                if (errorMessage.Contains("UNIQUE") || errorMessage.Contains("unique"))
                 {
-                    if (ex.InnerException.Message.Contains("Email"))
+                    if (errorMessage.Contains("Email"))
                         return BadRequest(new { Message = "Email đã tồn tại" });
-                    if (ex.InnerException.Message.Contains("Phone"))
+                    if (errorMessage.Contains("Phone"))
                         return BadRequest(new { Message = "Số điện thoại đã tồn tại" });
+                    if (errorMessage.Contains("Username"))
+                        return BadRequest(new { Message = "Tên người dùng đã tồn tại" });
                 }
-                return StatusCode(500, new { Message = $"Không thể đăng ký người dùng. Lỗi cơ sở dữ liệu: {errorMessage}" });
+                // Trả về lỗi chuẩn JSON cho client
+                return StatusCode(500, new { Message = "Không thể đăng ký người dùng. Lỗi cơ sở dữ liệu.", Detail = errorMessage });
             }
             catch (Exception ex)
             {
-                // Log lỗi chi tiết để debug
-                var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                var errorMessage = ex.InnerException?.Message ?? ex.Message;
                 Console.WriteLine($"Lỗi không mong muốn khi đăng ký người dùng: {errorMessage}");
-                return StatusCode(500, new { Message = $"Đã xảy ra lỗi không mong muốn: {errorMessage}" });
+                // Luôn trả về object JSON, không trả về chuỗi
+                return StatusCode(500, new { Message = "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.", Detail = errorMessage });
             }
         }
 
-        // [HttpPost("forgot-password")]
-        // public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
-        // {
-        //     var user = await _context.Users
-        //         .SingleOrDefaultAsync(u => u.Email == dto.Email);
+        [HttpPost("forgot-password/send-code")]
+        public async Task<IActionResult> SendResetCode([FromBody] ForgotPasswordDto dto)
+        {
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == dto.Email);
+            if (user != null)
+            {
+                var code = new Random().Next(100000, 999999).ToString();
+                _context.PasswordResetCodes.Add(new PasswordResetCode
+                {
+                    Email = dto.Email,
+                    Code = code,
+                    ExpiredAt = DateTime.UtcNow.AddMinutes(10)
+                });
+                await _context.SaveChangesAsync();
+                await SendResetEmail(dto.Email, code); // Hàm gửi email
+            }
+            return Ok(new { Message = "Nếu email hợp lệ, mã xác thực đã được gửi." });
+        }
 
-        //     if (user == null)
-        //         return NotFound(new { Message = "Không tìm thấy email" });
+        [HttpPost("forgot-password/verify-and-reset")]
+        public async Task<IActionResult> VerifyCodeAndResetPassword([FromBody] ResetPasswordWithCodeDto dto)
+        {
+            // Tìm code hợp lệ
+            var codeEntry = await _context.PasswordResetCodes
+                .Where(x => x.Email == dto.Email && x.Code == dto.Code && x.ExpiredAt > DateTime.UtcNow)
+                .OrderByDescending(x => x.ExpiredAt)
+                .FirstOrDefaultAsync();
 
-        //     var resetToken = GenerateResetToken(dto.Email);
-        //     var resetLink = $"http://localhost:5000/api/Auth/reset-password?token={resetToken}&email={dto.Email}";
-        //     try
-        //     {
-        //         await SendResetEmail(dto.Email, resetLink);
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         Console.WriteLine($"Không thể gửi email đặt lại mật khẩu: {ex.Message}");
-        //         return StatusCode(500, new { Message = "Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau" });
-        //     }
+            if (codeEntry == null)
+                return BadRequest(new { Message = "Mã xác thực không đúng hoặc đã hết hạn." });
 
-        //     return Ok(new { Message = "Liên kết đặt lại mật khẩu đã được gửi đến email của bạn" });
-        // }
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null)
+                return BadRequest(new { Message = "Không tìm thấy người dùng." });
 
-        // [HttpPost("reset-password")]
-        // public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
-        // {
-        //     var tokenHandler = new JwtSecurityTokenHandler();
-        //     var jwtKey = _config["Jwt:Key"];
-        //     if (string.IsNullOrEmpty(jwtKey))
-        //     {
-        //         return StatusCode(500, new { Message = "Lỗi cấu hình máy chủ: Thiếu khóa JWT" });
-        //     }
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _context.SaveChangesAsync();
 
-        //     try
-        //     {
-        //         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        //         tokenHandler.ValidateToken(dto.Token, new TokenValidationParameters
-        //         {
-        //             ValidateIssuerSigningKey = true,
-        //             IssuerSigningKey = key,
-        //             ValidateIssuer = false,
-        //             ValidateAudience = false,
-        //             ValidateLifetime = true
-        //         }, out SecurityToken validatedToken);
+            // Xoá code vừa dùng
+            _context.PasswordResetCodes.Remove(codeEntry);
+            await _context.SaveChangesAsync();
 
-        //         var jwtToken = (JwtSecurityToken)validatedToken;
-        //         var emailClaim = jwtToken.Claims.FirstOrDefault(x => x.Type == "email")?.Value;
+            return Ok(new { Message = "Đặt lại mật khẩu thành công!" });
+        }
 
-        //         if (emailClaim != dto.Email)
-        //             return BadRequest(new { Message = "Token không hợp lệ" });
-        //     }
-        //     catch (SecurityTokenExpiredException)
-        //     {
-        //         return BadRequest(new { Message = "Token đã hết hạn" });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         return BadRequest(new { Message = $"Token không hợp lệ: {ex.Message}" });
-        //     }
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var jwtKey = _config["Jwt:Key"];
+            if (string.IsNullOrEmpty(jwtKey))
+            {
+                return StatusCode(500, new { Message = "Lỗi cấu hình máy chủ: Thiếu khóa JWT" });
+            }
 
-        //     var user = await _context.Users
-        //         .SingleOrDefaultAsync(u => u.Email == dto.Email);
+            try
+            {
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+                tokenHandler.ValidateToken(dto.Token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = key,
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true
+                }, out SecurityToken validatedToken);
 
-        //     if (user == null)
-        //         return NotFound(new { Message = "Không tìm thấy người dùng" });
+                var jwtToken = (JwtSecurityToken)validatedToken;
+                var emailClaim = jwtToken.Claims.FirstOrDefault(x => x.Type == "email")?.Value;
 
-        //     user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
-        //     await _context.SaveChangesAsync();
+                if (emailClaim != dto.Email)
+                    return BadRequest(new { Message = "Token không hợp lệ" });
+            }
+            catch (SecurityTokenExpiredException)
+            {
+                return BadRequest(new { Message = "Token đã hết hạn" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = $"Token không hợp lệ: {ex.Message}" });
+            }
 
-        //     return Ok(new { Message = "Đặt lại mật khẩu thành công" });
-        // }
+            var user = await _context.Users
+                .SingleOrDefaultAsync(u => u.Email == dto.Email);
+
+            if (user == null)
+                return NotFound(new { Message = "Không tìm thấy người dùng" });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Đặt lại mật khẩu thành công" });
+        }
 
         private string GenerateResetToken(string email)
         {

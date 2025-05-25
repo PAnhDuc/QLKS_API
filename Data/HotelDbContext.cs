@@ -19,6 +19,7 @@ namespace QLKS_API.Data
         public DbSet<InvoiceService> InvoiceServices { get; set; }
         public DbSet<Report> Reports { get; set; }
         public DbSet<InvoiceLog> InvoiceLogs { get; set; }
+        public DbSet<PasswordResetCode> PasswordResetCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

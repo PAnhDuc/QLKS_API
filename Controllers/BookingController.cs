@@ -5,13 +5,13 @@ using QLKS_API.Data;
 using QLKS_API.Models;
 using QLKS_API.DTOs;
 using QLKS_API.Results;
-using Microsoft.Data.SqlClient; // Sử dụng Microsoft.Data.SqlClient thay vì System.Data.SqlClient
+using Microsoft.Data.SqlClient;
 
 namespace QLKS_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin,Receptionist")]
+    [Authorize] // <-- Sửa lại dòng này, chỉ cần đăng nhập là truy cập được mọi API trong controller này
     public class BookingController : ControllerBase
     {
         private readonly HotelDbContext _context;
