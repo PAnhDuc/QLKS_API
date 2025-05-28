@@ -11,7 +11,7 @@ namespace QLKS_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // <-- Sửa lại dòng này, chỉ cần đăng nhập là truy cập được mọi API trong controller này
+    [Authorize]
     public class BookingController : ControllerBase
     {
         private readonly HotelDbContext _context;
@@ -25,12 +25,20 @@ namespace QLKS_API.Controllers
         public async Task<IActionResult> GetBookings()
         {
             var bookings = await _context.Bookings
-                .Include(b => b.Customer)
-                .Include(b => b.Room)
+                .Select(b => new BookingDto
+                {
+                    BookingId = b.BookingId,
+                    CustomerId = b.CustomerId,
+                    RoomId = b.RoomId,
+                    CheckInDate = b.CheckInDate,
+                    CheckOutDate = b.CheckOutDate,
+                    Status = b.Status,
+                    CreatedAt = b.CreatedAt
+                })
                 .ToListAsync();
+
             return Ok(bookings);
         }
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetBooking(int id)
         {
@@ -47,14 +55,16 @@ namespace QLKS_API.Controllers
         {
             try
             {
-                var result = await _context.Database
+                var results = await _context.Database
                     .SqlQueryRaw<BookingResult>(
                         "EXEC CreateBooking @p_customer_id, @p_room_id, @p_check_in_date, @p_check_out_date",
-                        new Microsoft.Data.SqlClient.SqlParameter("p_customer_id", dto.CustomerId),
-                        new Microsoft.Data.SqlClient.SqlParameter("p_room_id", dto.RoomId),
-                        new Microsoft.Data.SqlClient.SqlParameter("p_check_in_date", dto.CheckInDate),
-                        new Microsoft.Data.SqlClient.SqlParameter("p_check_out_date", dto.CheckOutDate))
-                    .SingleAsync();
+                        new SqlParameter("p_customer_id", dto.CustomerId),
+                        new SqlParameter("p_room_id", dto.RoomId),
+                        new SqlParameter("p_check_in_date", dto.CheckInDate),
+                        new SqlParameter("p_check_out_date", dto.CheckOutDate))
+                    .ToListAsync();
+
+                var result = results.FirstOrDefault();
 
                 return Ok(new { result.Message, result.BookingId });
             }

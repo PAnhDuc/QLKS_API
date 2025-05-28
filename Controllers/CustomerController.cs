@@ -22,7 +22,19 @@ namespace QLKS_API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCustomers()
         {
-            var customers = await _context.Customers.Include(c => c.User).ToListAsync();
+            var customers = await _context.Customers
+                .Select(c => new CustomerDto
+                {
+                    CustomerId = c.CustomerId,
+                    UserId = c.UserId,
+                    FullName = c.FullName,
+                    Email = c.Email,
+                    Phone = c.Phone,
+                    Address = c.Address,
+                    CreatedAt = c.CreatedAt
+                })
+                .ToListAsync();
+
             return Ok(customers);
         }
 

@@ -33,6 +33,8 @@ namespace QLKS_API.Models
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
+        [Column("passwordchanged_at")]
+        public DateTime? PasswordChangedAt { get; set; }
         public Role Role { get; set; } = null!;
         public List<Customer> Customers { get; set; } = new();
         public List<Report> Reports { get; set; } = new();

@@ -31,7 +31,7 @@ namespace QLKS_API.Middleware
             {
                 _logger.LogError(ex, "An unhandled exception occurred.");
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                await context.Response.WriteAsync("An error occurred. Vui lòng thử lại sau.");
+                await context.Response.WriteAsync("Bạn đã gặp lỗi. Vui lòng thử lại sau.");
             }
         }
     }

@@ -50,9 +50,14 @@ namespace QLKS_API.Data
                 .HasForeignKey(u => u.RoleId);
 
             modelBuilder.Entity<Booking>()
+                .Property(b => b.CustomerId)
+                .HasColumnName("customer_id");
+
+            modelBuilder.Entity<Booking>()
                 .HasOne(b => b.Customer)
-                .WithMany()
-                .HasForeignKey(b => b.CustomerId);
+                .WithMany(c => c.Bookings)
+                .HasForeignKey(b => b.CustomerId)
+                .HasConstraintName("FK_Booking_Customer");
 
             modelBuilder.Entity<Invoice>()
                 .HasOne(i => i.Booking)
@@ -63,6 +68,10 @@ namespace QLKS_API.Data
                 .HasOne(i => i.Customer)
                 .WithMany()
                 .HasForeignKey(i => i.CustomerId);
+
+            modelBuilder.Entity<Customer>()
+                .Property(c => c.CustomerId)
+                .HasColumnName("customer_id");
         }
     }
 }
