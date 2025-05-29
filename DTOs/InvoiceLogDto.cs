@@ -5,13 +5,12 @@ using System.Threading.Tasks;
 
 namespace QLKS_API.DTOs
 {
-    public class InvoiceDto
+    public class InvoiceLogDto
     {
-        public int InvoiceId { get; set; }
+        public int LogId { get; set; }
         public int BookingId { get; set; }
-        public int CustomerId { get; set; }
         public string Status { get; set; }
-        public decimal TotalAmount { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public DateTime ChangedAt { get; set; }
+        public int CreatedBy { get; set; }
     }
 }

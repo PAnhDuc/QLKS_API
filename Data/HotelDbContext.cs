@@ -66,8 +66,9 @@ namespace QLKS_API.Data
 
             modelBuilder.Entity<Invoice>()
                 .HasOne(i => i.Customer)
-                .WithMany()
-                .HasForeignKey(i => i.CustomerId);
+                .WithMany(c => c.Invoices)
+                .HasForeignKey(i => i.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Customer>()
                 .Property(c => c.CustomerId)

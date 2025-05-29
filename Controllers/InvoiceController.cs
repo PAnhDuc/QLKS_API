@@ -25,7 +25,18 @@ namespace QLKS_API.Controllers
             var invoices = await _context.Invoices
                 .Include(i => i.Booking)
                 .Include(i => i.Customer)
+                .Select(invoice => new InvoiceDto
+                {
+                    InvoiceId = invoice.InvoiceId,
+                    BookingId = invoice.BookingId,
+                    CustomerId = invoice.CustomerId,
+                    Status = invoice.Status,
+                    TotalAmount = invoice.TotalAmount,
+                    CreatedAt = invoice.CreatedAt
+                    // Map thêm trường nếu cần
+                })
                 .ToListAsync();
+
             return Ok(invoices);
         }
 
@@ -36,8 +47,21 @@ namespace QLKS_API.Controllers
                 .Include(i => i.Booking)
                 .Include(i => i.Customer)
                 .FirstOrDefaultAsync(i => i.InvoiceId == id);
+
             if (invoice == null) return NotFound();
-            return Ok(invoice);
+
+            var dto = new InvoiceDto
+            {
+                InvoiceId = invoice.InvoiceId,
+                BookingId = invoice.BookingId,
+                CustomerId = invoice.CustomerId,
+                Status = invoice.Status,
+                TotalAmount = invoice.TotalAmount,
+                CreatedAt = invoice.CreatedAt
+                // Map thêm trường nếu cần
+            };
+
+            return Ok(dto);
         }
 
         [HttpPost]
@@ -53,7 +77,18 @@ namespace QLKS_API.Controllers
             };
             _context.Invoices.Add(invoice);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetInvoice), new { id = invoice.InvoiceId }, invoice);
+
+            var result = new InvoiceDto
+            {
+                InvoiceId = invoice.InvoiceId,
+                BookingId = invoice.BookingId,
+                CustomerId = invoice.CustomerId,
+                Status = invoice.Status,
+                TotalAmount = invoice.TotalAmount,
+                CreatedAt = invoice.CreatedAt
+            };
+
+            return CreatedAtAction(nameof(GetInvoice), new { id = invoice.InvoiceId }, result);
         }
 
         [HttpPut("{id}")]
@@ -61,12 +96,24 @@ namespace QLKS_API.Controllers
         {
             var invoice = await _context.Invoices.FindAsync(id);
             if (invoice == null) return NotFound();
-            invoice.BookingId = dto.BookingId;
-            invoice.CustomerId = dto.CustomerId;
-            invoice.TotalAmount = dto.TotalAmount;
-            invoice.Status = dto.Status;
-            await _context.SaveChangesAsync();
-            return Ok(invoice);
+
+            // Update bằng SQL thuần để tránh OUTPUT clause
+            var sql = "UPDATE Invoices SET booking_id = @p0, customer_id = @p1, total_amount = @p2, status = @p3 WHERE invoice_id = @p4";
+            await _context.Database.ExecuteSqlRawAsync(sql, dto.BookingId, dto.CustomerId, dto.TotalAmount, dto.Status, id);
+
+            // Lấy lại dữ liệu mới
+            var updated = await _context.Invoices.FindAsync(id);
+            var result = new InvoiceDto
+            {
+                InvoiceId = updated.InvoiceId,
+                BookingId = updated.BookingId,
+                CustomerId = updated.CustomerId,
+                Status = updated.Status,
+                TotalAmount = updated.TotalAmount,
+                CreatedAt = updated.CreatedAt
+            };
+
+            return Ok(result);
         }
 
         [HttpDelete("{id}")]
