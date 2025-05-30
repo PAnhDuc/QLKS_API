@@ -9,7 +9,7 @@ using Microsoft.Data.SqlClient;
 
 namespace QLKS_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize]
     public class BookingController : ControllerBase

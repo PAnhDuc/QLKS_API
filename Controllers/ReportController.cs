@@ -8,7 +8,7 @@ using Microsoft.Data.SqlClient; // Sử dụng Microsoft.Data.SqlClient
 
 namespace QLKS_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin,Accountant")]
     public class ReportController : ControllerBase

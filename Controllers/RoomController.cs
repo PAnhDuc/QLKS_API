@@ -7,7 +7,7 @@ using QLKS_API.DTOs;
 
 namespace QLKS_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin,Manager,Receptionist")]
     public class RoomController : ControllerBase

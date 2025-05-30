@@ -8,7 +8,7 @@ using BCrypt.Net;
 
 namespace QLKS_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin,Manager")]
     public class UserController : ControllerBase

@@ -13,7 +13,7 @@ using QLKS_API.Models.Dtos;
 
 namespace QLKS_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
