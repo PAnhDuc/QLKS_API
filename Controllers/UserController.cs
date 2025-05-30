@@ -23,14 +23,44 @@ namespace QLKS_API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _context.Users.Include(u => u.Role).ToListAsync();
+            var users = await _context.Users
+                .Include(u => u.Role)
+                .Select(u => new {
+                    u.UserId,
+                    u.Username,
+                    u.FullName,
+                    u.Email,
+                    u.Phone,
+                    u.CreatedAt,
+                    Role = new {
+                        u.Role.RoleId,
+                        u.Role.RoleName
+                    }
+                })
+                .ToListAsync();
             return Ok(users);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUser(int id)
         {
-            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserId == id);
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .Where(u => u.UserId == id)
+                .Select(u => new {
+                    u.UserId,
+                    u.Username,
+                    u.FullName,
+                    u.Email,
+                    u.Phone,
+                    u.CreatedAt,
+                    Role = new {
+                        u.Role.RoleId,
+                        u.Role.RoleName
+                    }
+                })
+                .FirstOrDefaultAsync();
+
             if (user == null) return NotFound();
             return Ok(user);
         }

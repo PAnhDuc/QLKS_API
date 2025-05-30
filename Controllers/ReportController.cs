@@ -40,15 +40,20 @@ namespace QLKS_API.Controllers
         {
             try
             {
-                var result = await _context.Database
+                ReportResult? result = null;
+                await foreach (var item in _context.Database
                     .SqlQueryRaw<ReportResult>(
                         "EXEC GenerateMonthlyRevenueReport @p_user_id, @p_year, @p_month",
-                        new Microsoft.Data.SqlClient.SqlParameter("p_user_id", dto.UserId),
-                        new Microsoft.Data.SqlClient.SqlParameter("p_year", dto.Year),
-                        new Microsoft.Data.SqlClient.SqlParameter("p_month", dto.Month))
-                    .SingleAsync();
+                        new SqlParameter("p_user_id", dto.UserId),
+                        new SqlParameter("p_year", dto.Year),
+                        new SqlParameter("p_month", dto.Month))
+                    .AsAsyncEnumerable())
+                {
+                    result = item;
+                    break;
+                }
 
-                return Ok(new { result.Message, result.ReportId });
+                return Ok(new { result?.Message, result?.ReportId });
             }
             catch (Exception ex)
             {
