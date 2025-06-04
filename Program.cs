@@ -5,6 +5,8 @@ using Microsoft.OpenApi.Models; // Thêm using này để cấu hình Swagger JW
 using System.Text;
 using QLKS_API.Data;
 using QLKS_API.Middleware;
+using Microsoft.Extensions.FileProviders;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,11 +83,10 @@ builder.Services.AddSwaggerGen(c =>
 // Thêm cấu hình CORS cho phép tất cả origin
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy
-            .AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod()
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod()
     );
 });
 

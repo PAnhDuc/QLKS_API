@@ -29,6 +29,9 @@ namespace QLKS_API.Models
         [Column("description")]
         public string? Description { get; set; }
 
+        [Column("image_url")]
+        public string? ImageUrl { get; set; } // Added this field
+
         public List<Booking> Bookings { get; set; } = new();
     }
 }

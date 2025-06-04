@@ -12,5 +12,6 @@ namespace QLKS_API.DTOs
         public decimal Price { get; set; }
         public string Status { get; set; } = "available";
         public string? Description { get; set; }
+        public string? ImageUrl { get; set; } // Thêm trường này
     }
 }

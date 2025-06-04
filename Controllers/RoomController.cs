@@ -43,7 +43,8 @@ namespace QLKS_API.Controllers
                 RoomType = dto.RoomType,
                 Price = dto.Price,
                 Status = dto.Status,
-                Description = dto.Description
+                Description = dto.Description,
+                ImageUrl = dto.ImageUrl ?? "https://images.unsplash.com/photo-1506744038136-46273834b3fb" // Link ảnh mặc định
             };
             _context.Rooms.Add(room);
             await _context.SaveChangesAsync();
@@ -60,6 +61,7 @@ namespace QLKS_API.Controllers
             room.Price = dto.Price;
             room.Status = dto.Status;
             room.Description = dto.Description;
+            room.ImageUrl = dto.ImageUrl; // Thêm dòng này
             await _context.SaveChangesAsync();
             return Ok(room);
         }

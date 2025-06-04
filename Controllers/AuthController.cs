@@ -102,11 +102,12 @@ namespace QLKS_API.Controllers
             // Vẫn trả về OK để tránh lộ email tồn tại
             if (user != null)
             {
+                // Luôn tạo token mới với đúng email
                 var token = GenerateResetToken(user.Email);
-                var link = $"http://localhost:5000/reset-password?token={token}";
-                await SendResetEmail(user.Email, link);
+                var link = $"http://localhost:5173/reset-password?token={token}";
+                _ = Task.Run(() => SendResetEmail(user.Email, link));
             }
-            return Ok(new { Message = "Nếu email hợp lệ, link đặt lại mật khẩu đã được gửi." });
+            return Ok(new { Message = "Link đặt lại mật khẩu đã được gửi." });
         }
 
         [HttpPost("reset-password")]
@@ -173,6 +174,8 @@ namespace QLKS_API.Controllers
         private ResetTokenPayload? ValidateResetToken(string token)
         {
             var jwtKey = _config["Jwt:Key"];
+            var issuer = _config["Jwt:Issuer"];
+            var audience = _config["Jwt:Audience"];
             if (string.IsNullOrEmpty(jwtKey)) return null;
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -180,24 +183,32 @@ namespace QLKS_API.Controllers
             {
                 var validationParameters = new TokenValidationParameters
                 {
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
+                    ValidateIssuer = true,
+                    ValidIssuer = issuer,
+                    ValidateAudience = true,
+                    ValidAudience = audience,
                     ValidateLifetime = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     ValidateIssuerSigningKey = true,
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.FromMinutes(2) // Cho phép lệch 2 phút
                 };
 
                 var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
                 var emailClaim = principal.Claims.FirstOrDefault(c => c.Type == "email");
                 return emailClaim == null ? null : new ResetTokenPayload { Email = emailClaim.Value };
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Token validation error: " + ex.GetType().Name + " - " + ex.Message);
+                return null;
+            }
         }
 
         private string GenerateResetToken(string email)
         {
             var jwtKey = _config["Jwt:Key"];
+            var issuer = _config["Jwt:Issuer"];
+            var audience = _config["Jwt:Audience"];
             if (string.IsNullOrEmpty(jwtKey))
                 throw new InvalidOperationException("Khóa JWT chưa được cấu hình");
 
@@ -211,8 +222,10 @@ namespace QLKS_API.Controllers
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(1),
+                expires: DateTime.UtcNow.AddMinutes(30),
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
@@ -242,9 +255,28 @@ namespace QLKS_API.Controllers
             message.From.Add(new MailboxAddress(senderName, senderEmail));
             message.To.Add(new MailboxAddress("", email));
             message.Subject = "Yêu Cầu Đặt Lại Mật Khẩu";
-            message.Body = new TextPart("plain")
+            message.Body = new TextPart("html")
             {
-                Text = $"Vui lòng nhấp vào liên kết sau để đặt lại mật khẩu của bạn: {resetLink}\nLiên kết này sẽ hết hạn sau 1 giờ."
+                Text = $@"
+    <div style='font-family: Arial, sans-serif; background: #f6f6f6; padding: 32px;'>
+        <div style='max-width: 480px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 32px;'>
+            <h2 style='color: #2d6cdf; text-align: center;'>Yêu cầu đặt lại mật khẩu</h2>
+            <p style='font-size: 16px; color: #333;'>
+                Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản của mình.<br>
+                Vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu:
+            </p>
+            <div style='text-align: center; margin: 24px 0;'>
+                <a href='{resetLink}' style='display: inline-block; background: #2d6cdf; color: #fff; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 16px;'>
+                    Đặt lại mật khẩu
+                </a>
+            </div>
+            <p style='font-size: 14px; color: #888; text-align: center;'>
+                Nếu bạn không yêu cầu, hãy bỏ qua email này.<br>
+                Liên kết này không có thời gian hết hạn.
+            </p>
+        </div>
+    </div>
+    "
             };
 
             using var client = new SmtpClient();
@@ -274,7 +306,6 @@ namespace QLKS_API.Controllers
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(1),
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
