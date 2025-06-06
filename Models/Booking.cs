@@ -33,7 +33,7 @@ namespace QLKS_API.Models
         public DateTime CheckOutDate { get; set; }
 
         [Column("status")]
-        public string Status { get; set; } = "pending";
+        public BookingStatus Status { get; set; } = BookingStatus.Pending;
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }

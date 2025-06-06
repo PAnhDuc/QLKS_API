@@ -19,7 +19,7 @@ namespace QLKS_API.Models
         [Column("total_amount")]
         public decimal TotalAmount { get; set; }
         [Column("status")]
-        public string Status { get; set; } = "pending";
+        public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
         public Booking Booking { get; set; } = null!;

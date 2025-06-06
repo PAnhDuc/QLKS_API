@@ -24,7 +24,7 @@ namespace QLKS_API.Models
         public decimal Price { get; set; }
 
         [Column("status")]
-        public string Status { get; set; } = "available";
+        public RoomStatus Status { get; set; } = RoomStatus.Available;
 
         [Column("description")]
         public string? Description { get; set; }

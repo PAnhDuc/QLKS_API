@@ -30,7 +30,7 @@ namespace QLKS_API.Controllers
                     InvoiceId = invoice.InvoiceId,
                     BookingId = invoice.BookingId,
                     CustomerId = invoice.CustomerId,
-                    Status = invoice.Status,
+                    Status = (int)invoice.Status,
                     TotalAmount = invoice.TotalAmount,
                     CreatedAt = invoice.CreatedAt
                     // Map thêm trường nếu cần
@@ -55,7 +55,7 @@ namespace QLKS_API.Controllers
                 InvoiceId = invoice.InvoiceId,
                 BookingId = invoice.BookingId,
                 CustomerId = invoice.CustomerId,
-                Status = invoice.Status,
+                Status = (int)invoice.Status,
                 TotalAmount = invoice.TotalAmount,
                 CreatedAt = invoice.CreatedAt
                 // Map thêm trường nếu cần
@@ -72,7 +72,7 @@ namespace QLKS_API.Controllers
                 BookingId = dto.BookingId,
                 CustomerId = dto.CustomerId,
                 TotalAmount = dto.TotalAmount,
-                Status = dto.Status,
+                Status = (InvoiceStatus)dto.Status,
                 CreatedAt = DateTime.UtcNow
             };
             _context.Invoices.Add(invoice);
@@ -83,7 +83,7 @@ namespace QLKS_API.Controllers
                 InvoiceId = invoice.InvoiceId,
                 BookingId = invoice.BookingId,
                 CustomerId = invoice.CustomerId,
-                Status = invoice.Status,
+                Status = (int)invoice.Status,
                 TotalAmount = invoice.TotalAmount,
                 CreatedAt = invoice.CreatedAt
             };
@@ -97,20 +97,22 @@ namespace QLKS_API.Controllers
             var invoice = await _context.Invoices.FindAsync(id);
             if (invoice == null) return NotFound();
 
-            // Update bằng SQL thuần để tránh OUTPUT clause
-            var sql = "UPDATE Invoices SET booking_id = @p0, customer_id = @p1, total_amount = @p2, status = @p3 WHERE invoice_id = @p4";
-            await _context.Database.ExecuteSqlRawAsync(sql, dto.BookingId, dto.CustomerId, dto.TotalAmount, dto.Status, id);
+            invoice.BookingId = dto.BookingId;
+            invoice.CustomerId = dto.CustomerId;
+            invoice.TotalAmount = dto.TotalAmount;
+            invoice.Status = (InvoiceStatus)dto.Status; // Explicit cast from int to InvoiceStatus
+            invoice.CreatedAt = dto.CreatedAt;
 
-            // Lấy lại dữ liệu mới
-            var updated = await _context.Invoices.FindAsync(id);
+            await _context.SaveChangesAsync();
+
             var result = new InvoiceDto
             {
-                InvoiceId = updated.InvoiceId,
-                BookingId = updated.BookingId,
-                CustomerId = updated.CustomerId,
-                Status = updated.Status,
-                TotalAmount = updated.TotalAmount,
-                CreatedAt = updated.CreatedAt
+                InvoiceId = invoice.InvoiceId,
+                BookingId = invoice.BookingId,
+                CustomerId = invoice.CustomerId,
+                Status = (int)invoice.Status,
+                TotalAmount = invoice.TotalAmount,
+                CreatedAt = invoice.CreatedAt
             };
 
             return Ok(result);

@@ -32,7 +32,7 @@ namespace QLKS_API.Controllers
                     RoomId = b.RoomId,
                     CheckInDate = b.CheckInDate,
                     CheckOutDate = b.CheckOutDate,
-                    Status = b.Status,
+                    Status = b.Status.ToString(),
                     CreatedAt = b.CreatedAt
                 })
                 .ToListAsync();
@@ -75,7 +75,7 @@ namespace QLKS_API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBooking(int id, [FromBody] CreateBookingDto dto)
+        public async Task<IActionResult> UpdateBooking(int id, [FromBody] UpdateBookingDto dto)
         {
             var booking = await _context.Bookings.FindAsync(id);
             if (booking == null) return NotFound();
@@ -83,6 +83,8 @@ namespace QLKS_API.Controllers
             booking.RoomId = dto.RoomId;
             booking.CheckInDate = dto.CheckInDate;
             booking.CheckOutDate = dto.CheckOutDate;
+            // Cho phép cập nhật trạng thái
+            booking.Status = dto.Status;
             await _context.SaveChangesAsync();
             return Ok(booking);
         }

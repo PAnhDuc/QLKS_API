@@ -7,6 +7,8 @@ using QLKS_API.Data;
 using QLKS_API.Middleware;
 using Microsoft.Extensions.FileProviders;
 using System.IO;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Json; // Thêm using này để sử dụng JsonStringEnumConverter
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,6 +90,17 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()
     );
+});
+
+// Thêm cấu hình JsonOptions để hỗ trợ Enum dạng chuỗi
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
 var app = builder.Build();

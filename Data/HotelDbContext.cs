@@ -33,15 +33,15 @@ namespace QLKS_API.Data
             // Default values
             modelBuilder.Entity<Room>()
                 .Property(r => r.Status)
-                .HasDefaultValue("available");
+                .HasConversion<string>(); // Đảm bảo dòng này có
 
             modelBuilder.Entity<Booking>()
                 .Property(b => b.Status)
-                .HasDefaultValue("pending");
+                .HasDefaultValue(BookingStatus.Pending); // hoặc .HasDefaultValue(0)
 
             modelBuilder.Entity<Invoice>()
                 .Property(i => i.Status)
-                .HasDefaultValue("pending");
+                .HasDefaultValue(InvoiceStatus.Pending); // hoặc .HasDefaultValue(0)
 
             // Relationships
             modelBuilder.Entity<User>()
