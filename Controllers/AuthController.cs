@@ -289,6 +289,8 @@ namespace QLKS_API.Controllers
         private string GenerateJwtToken(User user)
         {
             var jwtKey = _config["Jwt:Key"];
+            var issuer = _config["Jwt:Issuer"];
+            var audience = _config["Jwt:Audience"];
             if (string.IsNullOrEmpty(jwtKey))
                 throw new InvalidOperationException("Khóa JWT chưa được cấu hình");
 
@@ -303,9 +305,10 @@ namespace QLKS_API.Controllers
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
+                // KHÔNG truyền expires để token không có hạn
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
