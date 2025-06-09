@@ -36,7 +36,13 @@ namespace QLKS_API.Controllers
                 return Unauthorized("Tên người dùng hoặc mật khẩu không đúng");
 
             var token = GenerateJwtToken(user);
-            return Ok(new { Token = token });
+            return Ok(new
+            {
+                Token = token,
+                Username = user.Username,
+                Email = user.Email,
+                RoleId = user.RoleId
+            });
         }
 
         [HttpPost("register")]
